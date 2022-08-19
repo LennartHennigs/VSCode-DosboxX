@@ -1,0 +1,248 @@
+::  4DOS .BTM script to compile / run files in in DosBox-X & VSCode
+::  LH - 07/22
+::
+:: %1    file to be compiled (A86,PAS,ASM) or run (EXE,COM,BAT,BTM)
+::       file have the full mac path (slashes), or the dos path (backslashes)
+
+@echo off
+*setlocal
+
+set END=cancel
+
+:: check parameter
+if "%1" == "" goto error_param_missing
+if "%DOSPATH"=="" goto error_dospath
+if "%OUTPATH"=="" goto error_outpath
+if "%TPUPATH"=="" goto error_tpupath
+if "%TPOPATH"=="" goto error_tpopath
+if "%@filename[%1]"=="%@upper[%@filename[%_BATCHNAME]]" goto error_myself
+:: how we end
+
+:main
+   :: determine the file name
+   :: linux style?
+   iff not "%@index[%1,/,0]" == "0" then  
+      set DOSPATH=%@REPLACE[/,\,%DOSPATH]
+      :: convert slashes
+      set FFILE=%@replace[/,\,%1]
+      :: cut off the unix path, where dosbox lives
+      set FILE=%@replace[%DOSPATH,,%FFILE]
+      set END=exit
+   :: create full path
+   elseiff exist %1 then
+      set FILE=%_CWD%\%@filename[%1]
+   else goto error_file
+   endiff
+   :: useful abreviations
+   set FPATH=%@path[%FILE]
+   set NAME=%@name[%FILE]
+   set EXT=%@ext[%FILE]
+
+   color bri white on black
+   :: check for PAS / A86 / ASM / COM / EXE / BAT / BTM files
+   iff "%EXT" == "PAS" then
+      gosub run_pas      
+   elseiff "%EXT" == "A86" then 
+      gosub run_a86
+   elseiff "%EXT" == "ASM" then 
+      gosub run_asm
+   elseiff "%EXT" == "EXE" .OR. "%EXT" == "COM" then
+      SET FILE=%NAME%.%EXT%
+      gosub run_exe
+   elseiff "%EXT" == "BAT" .OR. "%EXT" == "BTM" then 
+      gosub run_bat
+   else 
+      echo Error: Unknown Extension
+   endiff
+
+:exit
+   color white on black
+   echo.
+:the_end
+   iff "%END"=="cancel" then 
+::      color bri white on black
+::      echo Use POPD to go to the output directory
+::      color white on black
+      cancel 
+   else 
+      pause
+      exit 
+   endiff
+
+:: -----------------------------
+
+:error_param_missing
+   echo Error: File parameter is missing
+   goto exit
+
+:error_myself
+   echo Error: I will not run myself!
+   goto exit
+
+:error_dospath
+   echo Error: DOSPATH is not set
+   goto exit
+
+:error_outpath
+   echo Error: OUTPATH is not set
+   goto exit
+
+:error_tpupath
+   echo Error: TPUPATH is not set
+   goto exit
+
+:error_tpopath
+   echo Error: TPOPATH is not set
+   goto exit
+
+:error_file
+   echo Error: File does not exist
+   goto exit
+
+:: -----------------------------
+
+:echo_ok
+   color green on black
+   echo OK
+   color bri white on black
+return
+
+
+:echo_error
+   color red on black
+   echo Error
+   color bri white on black
+return
+
+:: -----------------------------
+
+:run_bat      
+   color white on black
+   :: if you want to return later
+   pushd
+   cd %FPATH%
+   call %FILE%
+return
+
+:: -----------------------------
+
+:run_pas
+   tpc %FILE% -E%OUTPATH% -U%TPUPATH% -O%TPOPATH% -Q -V
+   set RET_CODE=%?
+   :: run it if there was no error
+   iff "%ret_code" == "0" then
+      gosub echo_ok
+      :: unit? -> move it
+      iff exist "%OUTPATH%\%NAME%.TPU" then
+         echo.
+         echo Moving %NAME%.TPU to %TPUPATH%
+         move /qe %OUTPATH%\%NAME%.TPU %TPUPATH% > NUL
+      :: exe? -> run it
+      elseiff exist "%OUTPATH%\%NAME%.EXE" then
+         echo.
+         echo Moving %NAME%.EXE to %OUTPATH%
+         :: update path and file name
+         set FPATH=%OUTPATH%
+         set FILE=%NAME%
+         gosub run_exe
+      endiff
+   else
+      echo.
+      gosub echo_error
+   endiff
+return
+
+:: -----------------------------
+
+:run_a86
+   a86 %FILE%
+   set RET_CODE=%?
+   :: run it if there was no error
+   iff "%RET_CODE" == "0" then
+      gosub echo_ok
+      echo.
+      :: del .SYM and (old) .ERR files
+      del /qe %FPATH%\%NAME%.SYM > NUL
+      del /qe %FPATH%\%NAME%.ERR > NUL
+      set NAME=%NAME%.COM
+      :: is the .COM empty?
+      iff "%@FILESIZE[%FPATH%\%NAME%]" == "0" then
+         echo %NAME is empty. Is it a library?
+         del /qe %FPATH%\%NAME% > NUL
+      else
+         echo Moving %NAME% to %OUTPATH%
+         move /qe %FPATH%\%NAME% %OUTPATH% > NUL
+         :: update path and file name
+         set FPATH=%OUTPATH%
+         set FILE=%NAME%
+         gosub run_exe
+      endiff
+   else 
+      gosub echo_error
+      move /qe %NAME%.ERR %FPATH% > NUL
+   endiff
+return
+
+:: -----------------------------
+
+:run_asm
+   cd %OUTPATH%
+   tasm %FILE% /l/n
+   set RET_CODE=%?
+
+   iff "%ret_code" == "0" then
+      gosub echo_ok
+      tlink %NAME /Tdc
+      :: clean up
+      del /qe %NAME%.OBJ %NAME%.LST %NAME%.MAP > NUL
+      :: update path and file name
+      set FILE=%NAME%.COM
+      set FPATH=%OUTPATH%
+      gosub run_exe
+   else 
+      gosub echo_error
+   endiff
+return
+
+:: -----------------------------
+
+:run_exe
+   ::  echo the new path
+   color white on black
+   echo.
+   set RES=%@REPLACE[C:,%DOSPATH,%FPATH]
+   set RES=%@REPLACE[\,/,%RES]/%FILE
+   set RES=%@REPLACE[//,/,%RES]
+   echo %RES
+   :: go to file
+   pushd
+   cd %FPATH
+   color bri white on black
+   :: check file
+   iff  "%@FILESIZE[%FILE]" == "0" then
+      echo Error: File is empty!
+   else
+      echo R)un  D)ebug  C)lear  Q)uit
+      inkey /PC %%key
+      color white on black
+      :: what to do?
+      iff "%key" == "r" then
+         %FILE
+         color bri white on black
+         echo.
+         echo Return Code: %?
+         goto run_exe
+      elseiff "%key" == "c" then
+         cls
+         goto run_exe
+      elseiff "%key" == "d" then
+         TD %FILE
+         goto run_exe
+      else 
+         goto the_end
+      endiff
+   endiff
+return
+
+:: -----------------------------
+:: -----------------------------
