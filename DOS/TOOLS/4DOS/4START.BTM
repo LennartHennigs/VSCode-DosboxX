@@ -1,0 +1,33 @@
+@echo off
+rem cleaner dir and hide internal files
+alias dir       = `echo.^*dir /w/p/h/b/x/[!.* ds_sto~1 vscode~1]`
+
+rem hate the first row
+alias cls       = `*cls^echo.`
+
+rem abreviations
+alias d         = `dir`
+alias l         = `dir`
+alias c         = `cls`
+
+rem better nav
+alias ..        = `*cd ..`
+alias ...       = `*cd \`
+alias -         = `..`
+alias type      = `*type /p`
+
+rem unix aliases
+alias mv        = `*move`
+alias rm        = `*del`
+alias cat       = `*type`
+alias ls        = `dir`
+
+rem edit
+alias edit      = `*edit.exe`
+alias ed        = `edit`
+alias @@Alt-e   = `ed`
+
+rem exit shortcuts
+alias ex        = `*exit`
+alias @@Alt-q   = `ex`
+alias @@Alt-x   = `ex`
