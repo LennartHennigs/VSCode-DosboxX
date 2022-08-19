@@ -13,6 +13,8 @@ My setup for compiling and running Turbo Pascal, TASM &amp; A86 programs in DosB
 - You can run or debug the compiled files (or any .COM or .EXE file)
 - Inside DosBoxX you can also call "CC [filename]" to start the script that the build task uses
 
+[![VSCode & DosBoxX](https://i.imgur.com/v2SHfuLl.png)](https://www.youtube.com/watch?v=FTyPqKCVFA0)
+
 # What you need
 
 - DosBoxX
