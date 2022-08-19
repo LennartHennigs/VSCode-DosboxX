@@ -56,13 +56,9 @@ if "%@filename[%1]"=="%@upper[%@filename[%_BATCHNAME]]" goto error_myself
    endiff
 
 :exit
-   color white on black
    echo.
-:the_end
+   color white on black
    iff "%END"=="cancel" then 
-::      color bri white on black
-::      echo Use POPD to go to the output directory
-::      color white on black
       cancel 
    else 
       pause
@@ -165,6 +161,7 @@ return
       del /qe %FPATH%\%NAME%.SYM > NUL
       del /qe %FPATH%\%NAME%.ERR > NUL
       set NAME=%NAME%.COM
+      set ASM=A86
       :: is the .COM empty?
       iff "%@FILESIZE[%FPATH%\%NAME%]" == "0" then
          echo %NAME is empty. Is it a library?
@@ -198,6 +195,7 @@ return
       :: update path and file name
       set FILE=%NAME%.COM
       set FPATH=%OUTPATH%
+      set ASM=TASM
       gosub run_exe
    else 
       gosub echo_error
@@ -209,7 +207,6 @@ return
 :run_exe
    ::  echo the new path
    color white on black
-   echo.
    set RES=%@REPLACE[C:,%DOSPATH,%FPATH]
    set RES=%@REPLACE[\,/,%RES]/%FILE
    set RES=%@REPLACE[//,/,%RES]
@@ -222,24 +219,33 @@ return
    iff  "%@FILESIZE[%FILE]" == "0" then
       echo Error: File is empty!
    else
+      echo.
       echo R)un  D)ebug  C)lear  Q)uit
-      inkey /PC %%key
-      color white on black
+      inkey /PCX %%key
       :: what to do?
       iff "%key" == "r" then
          %FILE
          color bri white on black
          echo.
          echo Return Code: %?
+         echo.
          goto run_exe
       elseiff "%key" == "c" then
          cls
          goto run_exe
       elseiff "%key" == "d" then
-         TD %FILE
+         echo T)D  D)86
+         inkey /PCX %%key
+         iff "%key" == "d" then
+            D86 %FILE%
+            cls
+         elseiff "%key" == "t" then
+            TD %FILE%
+         endiff
+         echo.
          goto run_exe
       else 
-         goto the_end
+         goto exit
       endiff
    endiff
 return
